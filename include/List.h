@@ -1,6 +1,11 @@
 #ifndef LIST_INCLUDE_LIST_H
 #define LIST_INCLUDE_LIST_H
 
+#include <stdexcept>
+#include <cstdio>
+#include <cstdlib>
+#include <iostream>
+#include <ctime>
 #include <random>
 #include <cmath>
 
@@ -17,7 +22,31 @@ class CyclicList {
     Node<T>* _head, * _tail;
     size_t _size;
 public:
-    CyclicList() : _head(nullptr), _tail(nullptr) {};
+    CyclicList() : _head(nullptr), _tail(nullptr), _size(0) {};
+
+    CyclicList(size_t size, T lower_bound, T upper_bound) :CyclicList() {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+
+        if constexpr (std::is_integral_v<T>) {
+            std::uniform_int_distribution<T> dist(lower_bound, upper_bound);
+
+            for (size_t i = 0; i < size; ++i) {
+                T data = dist(gen);
+                push_tail(data);
+            }
+            _size = size;
+        }
+        else if constexpr (std::is_floating_point_v<T>) {
+            std::uniform_real_distribution<T> dist(lower_bound, upper_bound);
+
+            for (size_t i = 0; i < size; ++i) {
+                T data = dist(gen);
+                push_tail(data);
+            }
+            _size = size;
+        }
+    }
 
     CyclicList(const CyclicList& other) {
         _head = nullptr;
@@ -33,25 +62,38 @@ public:
         }
     }
 
-    void push_head(const T& data) {
-        Node<T>* tmp = new Node<T>{ nullptr, nullptr, data };
-        if (_head == nullptr) {
-            _head = tmp;
-            _tail = tmp;
-            tmp->next = tmp;
-            tmp->prev = tmp;
+    CyclicList& operator=(const CyclicList& other) {
+        if (this != &other) {
+            clear();
+            Node<T>* tmp = other._head;
+            while (tmp != nullptr) {
+                push_tail(tmp->data);
+                tmp = tmp->next;
+            }
         }
-        else {
-            tmp->prev = _tail;
-            tmp->next = _head;
-            _tail->next = tmp;
-            _head->prev = tmp;
-            _head = tmp;
-        }
+        return *this;
     }
 
-    void push_tail(const T& data) {
-        Node<T>* tmp = new Node<T>{ nullptr, nullptr, data };
+    void push_head(T data) {
+        Node<T>* tmp = new Node<T>(data);
+        if (_head == nullptr) {
+            _head = tmp;
+            _tail = tmp;
+            tmp->next = tmp;
+            tmp->prev = tmp;
+        }
+        else {
+            tmp->prev = _tail;
+            tmp->next = _head;
+            _tail->next = tmp;
+            _head->prev = tmp;
+            _head = tmp;
+        }
+        _size++;
+    }
+
+    void push_tail(T data) {
+        Node<T>* tmp = new Node<T>(data);
         if (_head == nullptr) {
             _head = tmp;
             _tail = tmp;
@@ -65,6 +107,7 @@ public:
             _head->prev = tmp;
             _tail = tmp;
         }
+        _size++;
     }
 
     void push_head(const CyclicList<T>& other) {
@@ -100,33 +143,44 @@ public:
         _tail->next = _head;
     }
 
+    int get_len() {
+        if (_head == nullptr)
+            return 0;
+        int len = 1;
+        Node<T>* node = _head->next;
+        while (node != _head) {
+            len += 1;
+            node = node->next;
+        }
+        return len;
+    }
+
+
     void delete_node(T data) {
         Node <T>* tmp = _head;
-        while (tmp != nullptr) {
+        int len = this->get_len();
+        for (int i = 0; i < len; i++) {
             if (tmp->data == data) {
                 if (tmp == _head)
                 {
-                    Node<T>* new_head = _head->next;
-                    new_head->prev = nullptr;
-                    delete _head;
-                    _head = new_head;
+                    this->pop_head();
                 }
                 else if (tmp == _tail)
                 {
-                    Node<T>* new_tail = _tail->prev;
-                    new_tail->next = nullptr;
-                    delete _tail;
-                    _tail = new_tail;
+                    this->pop_tail();
                 }
                 else
                 {
                     tmp->prev->next = tmp->next;
                     tmp->next->prev = tmp->prev;
-                    delete tmp;
                 }
             }
             tmp = tmp->next;
         }
+    }
+
+    size_t size() const {
+        return _size;
     }
 };
 
@@ -150,4 +204,6 @@ T random()
     auto dice = getDice<T>(std::integral_constant<bool, std::numeric_limits<T>::is_integer>());
     return dice(generator);
 }
+
+
 #endif
