@@ -23,6 +23,7 @@ class CyclicList {
     Node<T>* _head, * _tail;
     size_t _size;
 public:
+    
     CyclicList() : _head(nullptr), _tail(nullptr), _size(0) {};
 
     CyclicList(size_t size, T lower_bound, T upper_bound) :CyclicList() {
@@ -53,12 +54,11 @@ public:
         _head = nullptr;
         _tail = nullptr;
         Node<T>* tmp = other._head;
-        this->push_tail(*tmp);
+        push_tail(tmp->data); // Исправленный вызов функции push_tail
         tmp = tmp->next;
         while (tmp != other._head) {
-            Node<T>* new_tmp = new Node<T>(*tmp);
-
-            this->push_tail(*new_tmp);
+            Node<T>* new_tmp = new Node<T>(tmp->data);
+            push_tail(new_tmp->data); // Исправленный вызов функции push_tail
             tmp = tmp->next;
         }
     }
@@ -119,11 +119,29 @@ public:
             *this = other;
             return;
         }
+        // Создание новых узлов для добавляемого списка
         Node<T>* other_head = other._head;
-        while (other_head) {
-            push_head(other_head->data);
+        Node<T>* new_head = new Node<T>(other_head->data);
+        Node<T>* new_tail = new_head;
+        other_head = other_head->next;
+
+        // Добавление остальных элементов добавляемого списка
+        while (other_head != other._head) {
+            Node<T>* new_node = new Node<T>(other_head->data);
+            new_node->next = new_head;
+            new_node->prev = new_tail;
+            new_tail->next = new_node;
+            new_tail = new_node;
             other_head = other_head->next;
         }
+
+        // Обновление связей текущего списка
+        new_tail->next = _head;
+        _head->prev = new_tail;
+        _head = new_head;
+
+   
+        _size += other.size();
     }
 
     void push_tail(const CyclicList<T>& other) {
@@ -135,21 +153,35 @@ public:
             return;
         }
         Node<T>* other_head = other._head;
-        while (other_head) {
-            push_tail(other_head->data);
+        Node<T>* other_tail = other._tail->prev;
+
+        while (other_head != other._tail) {
+            Node<T>* new_node = new Node<T>(other_head->data);
+            new_node->prev = _tail->prev;
+            new_node->next = _tail;
+            _tail->prev->next = new_node;
+            _tail->prev = new_node;
             other_head = other_head->next;
         }
-    }
 
-    int get_len() {
-        if (_head == nullptr)
+      
+        _size += other.size();
+    }
+    
+
+    int get_len() const {
+        if (_head == nullptr) {
             return 0;
-        int len = 1;
-        Node<T>* node = _head->next;
-        while (node != _head) {
-            len += 1;
-            node = node->next;
         }
+
+        int len = 1;
+        Node<T>* current = _head->next;
+
+        while (current != _head) {
+            len += 1;
+            current = current->next;
+        }
+
         return len;
     }
 
@@ -211,13 +243,15 @@ public:
                     tmp->prev->next = tmp->next;
                     tmp->next->prev = tmp->prev;
                     delete tmp;
+                    _size--;
                     break;
+                    
                 }
                 
             }
             tmp = tmp->next;
         }
-        _size--;
+        
     }
     
 
@@ -253,6 +287,21 @@ public:
         return current->data;
     }
     
+    Node<T>* getHead() const {
+        return _head;
+    }
+
+    Node<T>* getTail() const {
+        return _tail;
+    }
+
+    void setHead(Node<T>* head) {
+        _head = head;
+    }
+
+    void setTail(Node<T>* tail) {
+        _tail = tail;
+    }
 
     void clear() {
         while (!empty()) {
@@ -268,30 +317,30 @@ public:
         return (_size == 0);
     }
 
-    void reverse();
 };
 
 template<typename T>
-void CyclicList<T>::reverse() {
-    if (_head == nullptr || _head == _tail) {
+void reverse(CyclicList<T>& list) {
+    if (list.getHead() == nullptr || list.getHead() == list.getTail()) {
         return;
     }
 
-    Node<T>* current = _head;
+    Node<T>* current = list.getHead();
+    Node<T>* next_node = nullptr;
 
     do {
-        Node<T>* temp_next = current->next;
+        Node<T>* temp_prev = current->prev;
 
-        current->next = current->prev;
-        current->prev = temp_next;
+        current->prev = current->next;
+        current->next = temp_prev;
 
-        current = temp_next;
-    } while (current != _head);
+        next_node = current->prev;
+        current = next_node;
+    } while (current != list.getHead());
 
-
-    Node<T>* temp_head = _head;
-    _head = _tail;
-    _tail = temp_head;
+    Node<T>* temp_head = list.getHead();
+    list.setHead(list.getTail());
+    list.setTail(temp_head);
 }
 
 #endif
