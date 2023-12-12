@@ -11,7 +11,8 @@
 
 template <typename T>
 struct Node {
-    Node* next, * prev;
+    Node* next;
+    Node* prev;
     T data;
 
     Node(T data) : data(data), prev(nullptr), next(nullptr) {};
@@ -111,36 +112,33 @@ public:
     }
 
     void push_head(const CyclicList<T>& other) {
-        Node<T>* other_tail_next = other._tail->next;
-        Node<T>* head_prev = _head->prev;
-
-        other._tail->next = _head;
-        _head->prev = other._tail;
-        other._head->prev = _tail;
-        _tail->next = other._head;
-
-        _head = other._head;
-        _tail = other_tail_next->prev;
-
-        _head->prev = head_prev;
-        head_prev->next = _head;
+        if (other.empty()) {
+            return;
+        }
+        if (empty()) {
+            *this = other;
+            return;
+        }
+        Node<T>* other_head = other._head;
+        while (other_head) {
+            push_head(other_head->data);
+            other_head = other_head->next;
+        }
     }
 
     void push_tail(const CyclicList<T>& other) {
-        Node<T>* other_head_prev = other._head->prev;
-        Node<T>* tail_next = _tail->next;
-
-
-        other._head->prev = _tail;
-        _tail->next = _head;
-        other._tail->next = _head;
-        _head->prev = other._tail;
-
-        _tail = other._tail;
-        _head = other_head_prev->next;
-
-        _head->prev = _tail;
-        _tail->next = _head;
+        if (other.empty()) {
+            return;
+        }
+        if (empty()) {
+            *this = other;
+            return;
+        }
+        Node<T>* other_head = other._head;
+        while (other_head) {
+            push_tail(other_head->data);
+            other_head = other_head->next;
+        }
     }
 
     int get_len() {
@@ -155,6 +153,43 @@ public:
         return len;
     }
 
+    void pop_head() {
+        if (_head == nullptr) {
+            return;
+        }
+        if (_head == _tail) {
+            delete _head;
+            _head = nullptr;
+            _tail = nullptr;
+        }
+        else {
+            Node<T>* new_head = _head->next;
+            new_head->prev = _tail;
+            _tail->next = new_head;
+            delete _head;
+            _head = new_head;
+        }
+        _size--;
+    }
+
+    void pop_tail() {
+        if (_tail == nullptr) {
+            return;
+        }
+        if (_head == _tail) {
+            delete _tail;
+            _head = nullptr;
+            _tail = nullptr;
+        }
+        else {
+            Node<T>* new_tail = _tail->prev;
+            new_tail->next = _head;
+            _head->prev = new_tail;
+            delete _tail;
+            _tail = new_tail;
+        }
+        _size--;
+    }
 
     void delete_node(T data) {
         Node <T>* tmp = _head;
@@ -164,46 +199,99 @@ public:
                 if (tmp == _head)
                 {
                     this->pop_head();
+                    break;
                 }
                 else if (tmp == _tail)
                 {
                     this->pop_tail();
+                    break;
                 }
                 else
                 {
                     tmp->prev->next = tmp->next;
                     tmp->next->prev = tmp->prev;
+                    delete tmp;
+                    break;
                 }
+                
             }
             tmp = tmp->next;
         }
+        _size--;
     }
+    
 
     size_t size() const {
         return _size;
     }
+
+    T& operator[](size_t index) {
+        if (index >= _size) {
+            throw std::out_of_range("Index out of range");
+        }
+
+        Node<T>* current = _head;
+
+        for (size_t i = 0; i < index; i++) {
+            current = current->next;
+        }
+
+        return current->data;
+    }
+
+    const T& operator[](size_t index) const {
+        if (index >= _size) {
+            throw std::out_of_range("Index out of range");
+        }
+
+        Node<T>* current = _head;
+        
+        for (size_t i = 0; i < index; i++) {
+            current = current->next;
+        }
+
+        return current->data;
+    }
+    
+
+    void clear() {
+        while (!empty()) {
+            pop_head();
+        }
+    }
+
+    ~CyclicList() {
+        clear();
+    }
+
+    bool empty() const {
+        return (_size == 0);
+    }
+
+    void reverse();
 };
 
 template<typename T>
-std::uniform_int_distribution<T> getDice(std::true_type)
-{
-    return std::uniform_int_distribution<T>(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
-}
+void CyclicList<T>::reverse() {
+    if (_head == nullptr || _head == _tail) {
+        return;
+    }
 
-template<typename T>
-std::uniform_real_distribution<T> getDice(std::false_type)
-{
-    return std::uniform_real_distribution<T>(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
-}
+    Node<T>* current = _head;
 
-template<typename T>
-T random()
-{
-    std::random_device randomDevice;
-    std::mt19937_64 generator(randomDevice());
-    auto dice = getDice<T>(std::integral_constant<bool, std::numeric_limits<T>::is_integer>());
-    return dice(generator);
-}
+    do {
+        Node<T>* temp_next = current->next;
 
+        current->next = current->prev;
+        current->prev = temp_next;
+
+        current = temp_next;
+    } while (current != _head);
+
+
+    Node<T>* temp_head = _head;
+    _head = _tail;
+    _tail = temp_head;
+}
 
 #endif
